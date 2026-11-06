@@ -17,7 +17,7 @@ public final class Hud {
       Minecraft mc = Minecraft.getInstance();
       String pos = UniLernen.config.hudPosition;
       StudyManager s = UniLernen.study;
-      if ("aus".equals(pos) || s == null || mc.player == null || mc.options.hideGui || mc.gui.screen() != null) {
+      if ("aus".equals(pos) || s == null || mc.player == null || mc.gui.screen() != null) {
          return;
       }
       WorldData data = s.data();
