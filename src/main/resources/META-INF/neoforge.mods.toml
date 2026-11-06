@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "unilernen"
+version = "${mod_version}+mc${minecraft_version}"
+displayName = "Lernen generell"
+authors = "nphjfvp"
+logoFile = "assets/unilernen/icon.png"
+description = '''
+Lerne deinen Uni-Stoff beim Minecraft-Spielen. Lade Übungsblätter, Altklausuren oder Skripte als PDF in die Welt hoch; etwa alle 5 Minuten pausiert das Spiel und eine KI (über OpenRouter) stellt dir eine Aufgabe daraus. Falsch = ein zufälliger Gegenstand wird gelöscht, richtig = ein Booster fürs separate Booster-Inventar.
+'''
+
+[[dependencies.unilernen]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neo_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.unilernen]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},26.4)"
+ordering = "NONE"
+side = "CLIENT"

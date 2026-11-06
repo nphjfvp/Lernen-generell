@@ -1,0 +1,59 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+group = 'dev.lernen.uni'
+version = "${mod_version}+mc${minecraft_version}"
+base {
+    archivesName = 'lernen-generell'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+neoForge {
+    version = neo_version
+
+    mods {
+        unilernen {
+            sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        client {
+            client()
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Die Tests prüfen den Kern (Ablauf, KI-Antworten, PDFs) ohne Minecraft zu starten.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+test {
+    useJUnitPlatform()
+}
+
+processResources {
+    def props = [mod_version: mod_version, minecraft_version: minecraft_version, neo_version: neo_version]
+    inputs.properties props
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
