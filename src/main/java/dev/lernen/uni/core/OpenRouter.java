@@ -63,10 +63,34 @@ public final class OpenRouter {
       return m;
    }
 
+   /** Eine Nachricht mit Text und einer Sprachaufnahme (WAV). */
+   public static JsonObject audioMessage(String text, byte[] wav) {
+      JsonArray content = new JsonArray();
+      JsonObject t = new JsonObject();
+      t.addProperty("type", "text");
+      t.addProperty("text", text);
+      content.add(t);
+      JsonObject audio = new JsonObject();
+      audio.addProperty("data", Base64.getEncoder().encodeToString(wav));
+      audio.addProperty("format", "wav");
+      JsonObject a = new JsonObject();
+      a.addProperty("type", "input_audio");
+      a.add("input_audio", audio);
+      content.add(a);
+      JsonObject m = new JsonObject();
+      m.addProperty("role", "user");
+      m.add("content", content);
+      return m;
+   }
+
    public JsonObject body(JsonArray messages, boolean withPdf, double temperature) {
+      return this.body(this.config.get().model, messages, withPdf, temperature);
+   }
+
+   public JsonObject body(String model, JsonArray messages, boolean withPdf, double temperature) {
       UniConfig c = this.config.get();
       JsonObject body = new JsonObject();
-      body.addProperty("model", c.model.trim());
+      body.addProperty("model", model.trim());
       body.add("messages", messages);
       body.addProperty("temperature", temperature);
       if (withPdf && !"auto".equals(c.pdfEngine)) {
@@ -84,12 +108,16 @@ public final class OpenRouter {
 
    /** Schickt die Nachrichten ab und liefert den Text der Antwort. */
    public CompletableFuture<String> chat(JsonArray messages, boolean withPdf, double temperature, Duration timeout) {
+      return this.chat(this.config.get().model, messages, withPdf, temperature, timeout);
+   }
+
+   public CompletableFuture<String> chat(String model, JsonArray messages, boolean withPdf, double temperature, Duration timeout) {
       UniConfig c = this.config.get();
       if (!c.hasKey()) {
          return CompletableFuture.failedFuture(new ApiException(401, "Kein OpenRouter-Key eingetragen (Lernmenü → Einstellungen)."));
       }
 
-      String json = this.body(messages, withPdf, temperature).toString();
+      String json = this.body(model, messages, withPdf, temperature).toString();
       HttpRequest request = HttpRequest.newBuilder(URI.create(URL))
          .timeout(timeout)
          .header("Authorization", "Bearer " + c.apiKey.trim())

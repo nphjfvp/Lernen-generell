@@ -121,9 +121,14 @@ public final class SettingsScreen extends Screen {
       y += 24;
       this.buttonsY = y;
 
-      Button test = this.addRenderableWidget(Button.builder(Component.literal(this.testing ? "Teste …" : "Verbindung testen"), b -> this.test()).bounds(x, y, half, 20).build());
+      int third = 100;
+      Button test = this.addRenderableWidget(Button.builder(Component.literal(this.testing ? "Teste …" : "Verbindung testen"), b -> this.test()).bounds(x, y, third, 20).build());
       test.active = !this.testing;
-      this.addRenderableWidget(Button.builder(Component.literal("Fertig"), b -> this.onClose()).bounds(x + 158, y, half, 20).build());
+      this.addRenderableWidget(Button.builder(Component.literal("Sprechen …"), b -> {
+         this.apply();
+         this.minecraft.gui.setScreen(new SpeechSettingsScreen(this));
+      }).bounds(x + third + 5, y, third, 20).build());
+      this.addRenderableWidget(Button.builder(Component.literal("Fertig"), b -> this.onClose()).bounds(x + 2 * (third + 5), y, third, 20).build());
    }
 
    private Button label(Supplier<String> text, int x, int y, int w) {

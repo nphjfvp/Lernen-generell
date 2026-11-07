@@ -42,6 +42,54 @@ fragt auch die chinesische Lehrerin nichts.
 - **Überspringen** erscheint nur, wenn die KI 3-mal hintereinander nicht erreichbar war (kein Internet, kein
   Guthaben …), damit du nicht festsitzt. Fehler der KI werden nie bestraft.
 
+## Sprechübungen (3 Stufen)
+
+Unter *Einstellungen → Sprechen …* schaltest du Sprechübungen ein (*manchmal* = etwa jede 4. Aufgabe, *oft* = jede 2.,
+*nur Sprechen*) und wählst die Sprache (Chinesisch, Englisch, Deutsch, Spanisch, Französisch, Italienisch,
+Portugiesisch, Japanisch). Mit *Jetzt eine Sprechübung* im Lernmenü bekommst du sofort eine. Die KI baut einen Satz
+passend zu deinen Unterlagen (bei einem Sprachkurs aus dessen Vokabeln und Grammatik) und zerlegt ihn in Wörter,
+mit Pinyin für Chinesisch.
+
+Oben steht immer der **ganze Satz**, groß, mit der Aussprache darunter. Nach jeder Aufnahme wird jedes Wort
+**grün** (richtig) oder **rot** (falsch). **Leertaste** startet die Aufnahme. Sobald du nach dem Sprechen kurz still
+bist, wird sie von selbst ausgewertet (oder Leertaste noch einmal drücken).
+
+1. **Langsam, Wort für Wort:** Das gelbe Wort sprechen. Ist es richtig, wird es grün und das nächste kommt von
+   selbst. Ist es rot, sprichst du es noch einmal. Nach 3 Fehlversuchen kannst du ein Wort überspringen, falls die
+   Erkennung hängt.
+2. **Etwas schneller:** den ganzen Satz in einem Zug, ruhig, aber ohne lange Pausen (Chinesisch etwa 1 Silbe pro Sekunde).
+3. **Normales Tempo:** den ganzen Satz flüssig (Chinesisch etwa 2,2 Silben pro Sekunde, andere Sprachen etwa 1,8 Wörter
+   pro Sekunde, plus 1,5 s Reaktionszeit). Das Ziel in Sekunden steht im Fenster.
+
+In Stufe 2 und 3 müssen mindestens 80 % der Wörter erkannt werden (einstellbar). Wie bei normalen Aufgaben geht
+das Spiel erst weiter, wenn alle drei Stufen geschafft sind; danach gibt es einen Booster. Ein verpatzter Satz kostet
+standardmäßig **keinen** Gegenstand, weil auch die Erkennung mal danebenliegt (*Strafe bei Sprechfehlern* schaltet das ein).
+Chinesisch wird über die Pinyin-Silben ohne Töne verglichen. Falsch geratene, gleich klingende Schriftzeichen zählen
+deshalb nicht als Fehler.
+
+**Spracherkennung**, unter *Sprechen … → Erkennung*:
+
+- **helfer**: das Sprach-Hilfsprogramm von [Chinese-Minecraft](https://github.com/nphjfvp/Chinese-Minecraft). Es
+  läuft lokal und offline, nimmt selbst auf (Minecraft braucht keinen Mikrofonzugriff) und kann zh, en, de, es, pt und ja.
+  Wenn Chinese-Minecraft installiert ist und dort die Sprachantworten eingerichtet sind, läuft es schon. Wechselt die
+  Sprache, lädt der Helfer ein anderes Modell, und die chinesische Lehrerin muss danach kurz neu laden.
+- **openrouter**: Minecraft nimmt selbst über das Standard-Mikrofon auf, ein Audio-Modell über OpenRouter schreibt
+  mit (Standard: dein normales Modell, z. B. `google/gemini-2.5-flash`). Unter macOS braucht der Launcher dafür die
+  Mikrofon-Freigabe.
+- **auto** (Standard): der Helfer, wenn er läuft und die Sprache kann, sonst OpenRouter.
+
+## Anki-Export
+
+Lernmenü → **Anki-Export**. Ankreuzen, was exportiert werden soll:
+
+- die Aufgaben und Themen aus den PDFs (Vorderseite Aufgabe, Rückseite Lösung aus der PDF),
+- die im Spiel gestellten Aufgaben mit der Musterlösung der KI, auf Wunsch nur die falsch beantworteten,
+- die Sätze aus den Sprechübungen (Vorderseite Übersetzung, Rückseite Satz mit Pinyin).
+
+Die Datei landet in `saves/<Welt>/unilernen/anki/` und ihr Pfad in der Zwischenablage. In Anki: **Datei →
+Importieren** und die Datei wählen. Deck (mit Unterdecks pro Fach), Notiztyp *Basic* und Schlagwörter stehen schon in
+der Datei, du musst nichts einstellen. Doppelte Karten erkennt Anki beim nächsten Export selbst.
+
 ## Welche Aufgaben kommen?
 
 Unter *Einstellungen → Aufgaben*:
@@ -79,6 +127,7 @@ Delfingnade · Meereskraft · Held des Dorfes
 | PDF-Leser | auto | `pdf-text` = kostenlos, nur PDFs mit echtem Text · `mistral-ocr` = auch Scans, Handschrift, Formeln als Bild (kostet etwas) · `native` = das Modell liest die PDF selbst |
 | Anzeige | oben rechts | Countdown und Booster-Zahl (oben links stört die Anzeige von Chinese-Minecraft) |
 | Automatische Aufgaben | an | aus = nur über *Jetzt eine Aufgabe* im Lernmenü |
+| Sprechen … | aus | Sprechübungen, Sprache, Erkennung, nötige Trefferquote, Strafe; siehe oben |
 | Sprache | Deutsch | In dieser Sprache stellt und bewertet die KI |
 | Wünsche an KI | – | z. B. „Klausurniveau“, „mehr Beweise“, „nur Rechenaufgaben“ |
 
@@ -101,6 +150,7 @@ PDF-Liste auf **↻** klicken.
 |---|---|
 | `.minecraft/config/unilernen.json` | Einstellungen inkl. API-Key (nicht weitergeben!) |
 | `.minecraft/saves/<Welt>/unilernen/welt.json` | Aufgaben, offene Aufgabe, Booster-Inventar, Statistik der Welt |
+| `.minecraft/saves/<Welt>/unilernen/anki/` | Die Anki-Exporte |
 | `.minecraft/saves/<Welt>/unilernen/pdfs/` | Die hochgeladenen PDFs. Du kannst PDFs auch direkt hier hineinlegen und im Spiel *Ordner einlesen* klicken. |
 
 ## Grenzen
@@ -133,8 +183,13 @@ Test-Minecraft mit der Mod.
 | `core/OpenRouter`, `core/OpenRouterAi` | API-Aufrufe (Chat mit PDF-Anhang) |
 | `core/Prompts` | Die Anweisungen an die KI (Aufgaben herauslesen, erstellen, bewerten, Tipp, Lösung) |
 | `core/AiJson`, `core/MathText` | KI-Antworten robust lesen; LaTeX-Reste in Unicode-Mathe umwandeln |
+| `core/SpeakingSession`, `core/SpeechCompare` | Die drei Sprechstufen; vergleicht Gehörtes Wort für Wort (Chinesisch über Pinyin) |
+| `core/HelperSpeech`, `core/MicSpeech` | Spracherkennung über den Helfer von Chinese-Minecraft oder Aufnahme im Spiel + OpenRouter |
+| `core/AnkiExport` | Anki-Importdatei schreiben |
 | `core/Boosters`, `core/WorldData`, `core/UniConfig` | Booster-Liste, Daten pro Welt, Einstellungen |
 | `TaskScreen` | Das Aufgabenfenster (pausiert, nicht schließbar) |
+| `SpeakScreen` | Das Sprechfenster mit den drei Stufen |
+| `AnkiScreen`, `SpeechSettingsScreen` | Anki-Export, Sprech-Einstellungen |
 | `MenuScreen`, `BoosterScreen`, `MaterialScreen`, `SettingsScreen` | Lernmenü, Booster-Inventar, Unterlagen, Einstellungen |
 | `GameActions` | Gegenstand löschen und Booster-Effekte (auf dem eingebauten Server) |
 | `Hud` | Countdown oben rechts |

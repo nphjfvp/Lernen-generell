@@ -26,7 +26,7 @@ public final class MenuScreen extends Screen {
    protected void init() {
       int bw = 150;
       int x = this.width / 2 - bw - 3;
-      int y = this.height - 76;
+      int y = this.height - 100;
       StudyManager s = UniLernen.study;
       WorldData data = s.data();
       int boosters = data == null ? 0 : data.boosterTotal();
@@ -41,10 +41,25 @@ public final class MenuScreen extends Screen {
          this.minecraft.gui.setScreen(null);
          UniLernen.message(this.minecraft, "§e[Lernen] §7Die Aufgabe kommt, sobald sie fertig ist …");
       }).bounds(x, y + 24, bw, 20).build());
-      this.addRenderableWidget(Button.builder(Component.literal("Einstellungen"), b -> this.minecraft.gui.setScreen(new SettingsScreen(this)))
-         .bounds(x + bw + 6, y + 24, bw, 20)
+      String lang = UniLernen.config.speechLanguage;
+      Button speak = this.addRenderableWidget(Button.builder(Component.literal("Jetzt eine Sprechübung"), b -> {
+         s.speakNow();
+         this.minecraft.gui.setScreen(null);
+         UniLernen.message(this.minecraft, "§e[Lernen] §7Die Sprechübung kommt, sobald der Satz fertig ist …");
+      }).bounds(x + bw + 6, y + 24, bw, 20).build());
+      String problem = UniLernen.speechProblem(lang);
+      speak.active = data != null && s.active() == null && UniLernen.config.hasKey() && problem.isEmpty();
+      if (!problem.isEmpty()) {
+         speak.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(problem)));
+      }
+      Button anki = this.addRenderableWidget(Button.builder(Component.literal("Anki-Export"), b -> this.minecraft.gui.setScreen(new AnkiScreen(this)))
+         .bounds(x, y + 48, bw, 20)
          .build());
-      this.addRenderableWidget(Button.builder(Component.literal("Fertig"), b -> this.onClose()).bounds(this.width / 2 - 75, y + 48, 150, 20).build());
+      anki.active = data != null;
+      this.addRenderableWidget(Button.builder(Component.literal("Einstellungen"), b -> this.minecraft.gui.setScreen(new SettingsScreen(this)))
+         .bounds(x + bw + 6, y + 48, bw, 20)
+         .build());
+      this.addRenderableWidget(Button.builder(Component.literal("Fertig"), b -> this.onClose()).bounds(this.width / 2 - 75, y + 72, 150, 20).build());
       this.now.active = data != null && s.blocker().replace("Automatische Aufgaben aus", "").isEmpty() && s.active() == null;
    }
 
@@ -66,7 +81,7 @@ public final class MenuScreen extends Screen {
       int x0 = this.width / 2 - 156;
       int x1 = this.width / 2 + 156;
       int top = 26;
-      int bottom = this.height - 84;
+      int bottom = this.height - 106;
       Ui.panel(g, x0, top, x1, bottom);
       List<String[]> rows = new ArrayList<>();
       if (data == null) {
@@ -99,6 +114,11 @@ public final class MenuScreen extends Screen {
             rows.add(new String[]{"Fächer", subjects});
          }
          rows.add(new String[]{"KI-Modell", UniLernen.config.model + (UniLernen.config.hasKey() ? "" : " §c(kein Key)")});
+         String lang = UniLernen.config.speechLanguage;
+         String problem = UniLernen.speechProblem(lang);
+         var input = UniLernen.speechInput(lang);
+         rows.add(new String[]{"Sprechen", dev.lernen.uni.core.Languages.name(lang) + ", " + UniLernen.config.speechMode
+            + (input != null ? " · " + input.name() : " · §c" + problem)});
          WorldData.Stats st = data.stats;
          rows.add(new String[]{"Gelöst", st.solved + " (beim ersten Versuch: " + st.solvedFirstTry + ")"});
          rows.add(new String[]{"Falsche Antworten", st.wrongAnswers + " (verlorene Stapel: " + st.itemsLost + ")"});

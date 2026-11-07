@@ -16,13 +16,14 @@ final class GameBridge implements StudyManager.Game {
    @Override
    public void openChallenge() {
       if (this.mc.player != null) {
-         this.mc.gui.setScreen(new TaskScreen());
+         var c = UniLernen.study.active();
+         this.mc.gui.setScreen(c != null && c.isSpeaking() ? new SpeakScreen() : new TaskScreen());
       }
    }
 
    @Override
    public boolean challengeOpen() {
-      return this.mc.gui.screen() instanceof TaskScreen;
+      return this.mc.gui.screen() instanceof TaskScreen || this.mc.gui.screen() instanceof SpeakScreen;
    }
 
    @Override

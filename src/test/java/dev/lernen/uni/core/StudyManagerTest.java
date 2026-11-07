@@ -74,6 +74,16 @@ class StudyManagerTest {
       public CompletableFuture<String> solve(WorldData.Challenge challenge) {
          return CompletableFuture.completedFuture("Die Lösung");
       }
+
+      @Override
+      public CompletableFuture<WorldData.Challenge> generateSpeaking(WorldData.Task task, String language, String subjects) {
+         return CompletableFuture.completedFuture(SpeakingTest.chinese());
+      }
+
+      @Override
+      public CompletableFuture<SpeechCompare.Heard> transcribe(byte[] wav, String language) {
+         return CompletableFuture.completedFuture(new SpeechCompare.Heard("我", List.of("wǒ"), 1.0, false));
+      }
    }
 
    static final class FakeGame implements StudyManager.Game {
@@ -270,6 +280,35 @@ class StudyManagerTest {
       this.study.materials().remove("Blatt 2.pdf");
       assertEquals(1, this.data.tasks.size());
       assertFalse(Files.exists(this.data.pdfFolder().resolve("Blatt 2.pdf")));
+   }
+
+   @Test
+   void speakingChallengeFlow() {
+      this.config.speechMode = "nur";
+      this.study.setSpeechAvailable(() -> true);
+      this.study.askNow();
+      this.play(1000L);
+      WorldData.Challenge c = this.study.active();
+      assertTrue(c.isSpeaking());
+      this.study.speechFailed("zu langsam");
+      assertTrue(this.game.penalties.isEmpty(), "Sprechfehler kosten standardmäßig nichts");
+      this.config.speechPenalty = true;
+      this.study.speechFailed("zu langsam");
+      assertEquals(List.of("stapel"), this.game.penalties);
+      this.study.finishSpeaking();
+      assertNull(this.study.active());
+      assertEquals(1, this.data.boosterTotal());
+      assertEquals("sprechen", this.data.history.getLast().kind);
+      assertEquals("wǒ zài wā ní tǔ", this.data.history.getLast().reading);
+   }
+
+   @Test
+   void noSpeakingWithoutRecognizer() {
+      this.config.speechMode = "nur";
+      this.study.askNow();
+      this.play(1000L);
+      assertFalse(this.study.active().isSpeaking(), "ohne Spracherkennung gibt es normale Aufgaben");
+      this.study.speakNow();
    }
 
    @Test

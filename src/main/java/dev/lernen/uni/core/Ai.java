@@ -16,6 +16,12 @@ public interface Ai {
 
    CompletableFuture<String> solve(WorldData.Challenge challenge);
 
+   /** Ein Satz zum Nachsprechen in der Sprache {@code language} (Sprachcode), passend zur Vorlage. */
+   CompletableFuture<WorldData.Challenge> generateSpeaking(WorldData.Task task, String language, String subjects);
+
+   /** Schreibt eine Sprachaufnahme (WAV) wörtlich mit. */
+   CompletableFuture<SpeechCompare.Heard> transcribe(byte[] wav, String language);
+
    record Extraction(String subject, String summary, List<WorldData.Task> tasks) {
    }
 

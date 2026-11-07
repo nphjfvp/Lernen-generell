@@ -121,6 +121,10 @@ public final class TaskScreen extends Screen {
    @Override
    public void tick() {
       StudyManager s = this.study();
+      if (s.active() != null && s.active().isSpeaking()) {
+         this.minecraft.gui.setScreen(new SpeakScreen());
+         return;
+      }
       if (!this.solvedView && s.active() == null) {
          if (s.solved() != null) {
             // Gerade richtig gelöst: Ansicht wechseln.
@@ -180,6 +184,7 @@ public final class TaskScreen extends Screen {
       String kind = switch (c.style) {
          case "original" -> "Aufgabe aus deinen Unterlagen";
          case "kurz" -> "Kurzfrage";
+         case "sprechen" -> "Sprechübung";
          default -> "Übungsaufgabe";
       };
       String head = this.solvedView ? "✔ Richtig gelöst!" : "✎ " + kind + (c.title.isBlank() ? "" : " – " + c.title);
@@ -228,7 +233,13 @@ public final class TaskScreen extends Screen {
          } else {
             Ui.wrap(this.font, lines, "Mit aufgedeckter Lösung gibt es keinen Booster. Nächstes Mal klappt's!", textW, Ui.GREY);
          }
-         if (!c.solution.isBlank() && !c.solutionShown) {
+         if (c.isSpeaking()) {
+            lines.add(new Ui.Line(net.minecraft.util.FormattedCharSequence.EMPTY, Ui.WHITE));
+            if (!c.speech.reading().isBlank()) {
+               Ui.wrap(this.font, lines, "Aussprache: " + c.speech.reading(), textW, Ui.BLUE);
+            }
+            Ui.wrap(this.font, lines, "Bedeutung: " + c.speech.translation, textW, Ui.BLUE);
+         } else if (!c.solution.isBlank() && !c.solutionShown) {
             lines.add(new Ui.Line(net.minecraft.util.FormattedCharSequence.EMPTY, Ui.WHITE));
             Ui.wrap(this.font, lines, "Musterlösung zum Vergleich:", textW, Ui.BLUE);
             Ui.wrap(this.font, lines, c.solution, textW, Ui.BLUE);

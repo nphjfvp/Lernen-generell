@@ -112,6 +112,68 @@ public final class OpenRouterAi implements Ai {
    }
 
    @Override
+   public CompletableFuture<WorldData.Challenge> generateSpeaking(WorldData.Task task, String language, String subjects) {
+      return this.ask(Prompts.speaking(task, language, this.config.get(), subjects), 0.8, Duration.ofMinutes(2))
+         .thenApply(o -> parseSpeaking(o, task, language));
+   }
+
+   static WorldData.Challenge parseSpeaking(JsonObject o, WorldData.Task task, String language) {
+      WorldData.SpeechTask s = new WorldData.SpeechTask();
+      s.language = language;
+      s.sentence = AiJson.string(o, "satz", "sentence");
+      s.translation = AiJson.string(o, "uebersetzung", "übersetzung", "translation");
+      for (JsonElement e : AiJson.array(o, "woerter", "wörter", "words")) {
+         if (e.isJsonObject()) {
+            JsonObject w = e.getAsJsonObject();
+            String text = AiJson.string(w, "text", "wort", "word").replaceAll("[\\p{P}&&[^'\\-]]", "").strip();
+            if (!text.isEmpty()) {
+               s.words.add(new WorldData.SpeechWord(text, AiJson.string(w, "lesung", "reading", "pinyin"), AiJson.string(w, "bedeutung", "meaning")));
+            }
+         } else if (e.isJsonPrimitive() && !e.getAsString().isBlank()) {
+            s.words.add(new WorldData.SpeechWord(e.getAsString().strip(), "", ""));
+         }
+      }
+      if (s.words.isEmpty() && !s.sentence.isBlank() && !Languages.isCjk(language)) {
+         for (String w : s.sentence.split("\\s+")) {
+            String t = w.replaceAll("[\\p{P}&&[^'\\-]]", "");
+            if (!t.isEmpty()) {
+               s.words.add(new WorldData.SpeechWord(t, "", ""));
+            }
+         }
+      }
+      if (s.words.isEmpty()) {
+         throw new IllegalArgumentException("Die KI hat keinen Satz zum Sprechen geliefert.");
+      }
+      if (s.sentence.isBlank()) {
+         s.sentence = String.join(Languages.isCjk(language) ? "" : " ", s.words.stream().map(w -> w.text).toList());
+      }
+      WorldData.Challenge c = new WorldData.Challenge();
+      c.taskId = task == null ? "" : task.id;
+      c.style = "sprechen";
+      c.title = "Sprechen: " + Languages.name(language);
+      c.question = s.sentence;
+      c.solution = s.translation;
+      c.speech = s;
+      return c;
+   }
+
+   @Override
+   public CompletableFuture<SpeechCompare.Heard> transcribe(byte[] wav, String language) {
+      JsonArray messages = new JsonArray();
+      messages.add(OpenRouter.audioMessage(Prompts.transcription(language), wav));
+      return this.client.chat(this.config.get().audioModelOrDefault(), messages, false, 0.0, Duration.ofMinutes(1)).thenApply(reply -> {
+         JsonObject o = AiJson.object(reply);
+         List<String> reading = new ArrayList<>();
+         for (String syl : AiJson.string(o, "lesung", "pinyin", "reading").split("\\s+")) {
+            if (!syl.isBlank()) {
+               reading.add(syl);
+            }
+         }
+         return new SpeechCompare.Heard(AiJson.string(o, "text"), reading, 0.0, false);
+      });
+   }
+
+   @Override
    public CompletableFuture<String> solve(WorldData.Challenge challenge) {
       return this.ask(Prompts.solve(challenge, this.config.get()), 0.1, Duration.ofMinutes(3)).thenApply(o -> MathText.toUnicode(AiJson.string(o, "loesung", "lösung", "solution")));
    }

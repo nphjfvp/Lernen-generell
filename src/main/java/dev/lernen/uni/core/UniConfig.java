@@ -17,6 +17,8 @@ public final class UniConfig {
    public static final List<String> STYLES = List.of("gemischt", "original", "aehnlich", "kurz");
    public static final List<String> PENALTIES = List.of("stapel", "einzeln", "keine");
    public static final List<String> PDF_ENGINES = List.of("auto", "pdf-text", "mistral-ocr", "native");
+   public static final List<String> SPEECH_MODES = List.of("aus", "manchmal", "oft", "nur");
+   public static final List<String> SPEECH_ENGINES = List.of("auto", "helfer", "openrouter");
    public static final List<String> HUD_POSITIONS = List.of("oben_rechts", "oben_links", "aus");
 
    public int configVersion = 1;
@@ -45,8 +47,40 @@ public final class UniConfig {
    /** Aufgaben automatisch stellen (aus = nur über das Menü). */
    public boolean enabled = true;
 
+   /** Sprechübungen: aus, manchmal (jede 4.), oft (jede 2.), nur (nur noch Sprechen). */
+   public String speechMode = "aus";
+   /** In welcher Sprache gesprochen wird (Sprachcode). */
+   public String speechLanguage = "zh";
+   /**
+    * Spracherkennung: helfer = das lokale Sprach-Hilfsprogramm von Chinese-Minecraft (Learn or Die),
+    * openrouter = Aufnahme im Spiel, ein Audio-Modell schreibt mit, auto = Helfer wenn er läuft, sonst OpenRouter.
+    */
+   public String speechEngine = "auto";
+   /** Adresse des Sprach-Hilfsprogramms (wie in Chinese-Minecraft). */
+   public String speechHelperUrl = "http://127.0.0.1:17645";
+   /** Modell für die Aufnahmen bei speechEngine openrouter; leer = das normale Modell. Muss Audio verstehen. */
+   public String audioModel = "";
+   /** So viel Prozent der Wörter müssen in Stufe 2 und 3 erkannt werden. */
+   public int speechPassPercent = 80;
+   /** Ob ein verpatzter Satz (Stufe 2/3) auch einen Gegenstand kostet. Aus, weil die Erkennung nicht perfekt ist. */
+   public boolean speechPenalty = false;
+
    public boolean hasKey() {
       return this.apiKey != null && !this.apiKey.isBlank();
+   }
+
+   /** Anteil der Sprechübungen an allen Aufgaben. */
+   public double speechShare() {
+      return switch (this.speechMode) {
+         case "manchmal" -> 0.25;
+         case "oft" -> 0.5;
+         case "nur" -> 1.0;
+         default -> 0.0;
+      };
+   }
+
+   public String audioModelOrDefault() {
+      return this.audioModel == null || this.audioModel.isBlank() ? this.model : this.audioModel.strip();
    }
 
    public long intervalMs() {
@@ -88,6 +122,22 @@ public final class UniConfig {
       if (!PDF_ENGINES.contains(this.pdfEngine)) {
          this.pdfEngine = "auto";
       }
+      if (!SPEECH_MODES.contains(this.speechMode)) {
+         this.speechMode = "aus";
+      }
+      if (!SPEECH_ENGINES.contains(this.speechEngine)) {
+         this.speechEngine = "auto";
+      }
+      if (this.speechLanguage == null || Languages.name(this.speechLanguage) == null) {
+         this.speechLanguage = "zh";
+      }
+      if (this.speechHelperUrl == null || this.speechHelperUrl.isBlank()) {
+         this.speechHelperUrl = "http://127.0.0.1:17645";
+      }
+      if (this.audioModel == null) {
+         this.audioModel = "";
+      }
+      this.speechPassPercent = Math.max(30, Math.min(100, this.speechPassPercent));
       if (!HUD_POSITIONS.contains(this.hudPosition)) {
          this.hudPosition = "oben_rechts";
       }

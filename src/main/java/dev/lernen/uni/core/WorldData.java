@@ -29,6 +29,8 @@ public final class WorldData {
    /** Booster-ID → Anzahl. Das ist das separate Booster-Inventar. */
    public Map<String, Integer> boosters = new LinkedHashMap<>();
    public Stats stats = new Stats();
+   /** Gestellte Aufgaben mit Lösung, für den Anki-Export (die neuesten hinten). */
+   public List<HistoryEntry> history = new ArrayList<>();
    /** Gespielte Zeit in dieser Welt (ms, ohne Pausen); misst die Abstände der Aufgaben. */
    public long playMs;
 
@@ -85,6 +87,15 @@ public final class WorldData {
       public List<Attempt> attempts = new ArrayList<>();
       public boolean solutionShown;
       public long createdAt;
+      /** Gesetzt bei einer Sprechübung; dann gibt es statt Frage und Antwortfeld die drei Sprechstufen. */
+      public SpeechTask speech;
+      /** Wie weit die Sprechübung ist (Stufe 0–2, Wort in Stufe 0), damit sie nach dem Neuladen weitergeht. */
+      public int speechStage;
+      public int speechWord;
+
+      public boolean isSpeaking() {
+         return this.speech != null && !this.speech.words.isEmpty();
+      }
 
       public int wrongAttempts() {
          int n = 0;
@@ -95,6 +106,60 @@ public final class WorldData {
          }
          return n;
       }
+   }
+
+   /** Ein Satz zum Nachsprechen, in Wörter zerlegt. */
+   public static final class SpeechTask {
+      /** Sprachcode: zh, en, de, es, fr, it, pt, ja … */
+      public String language = "zh";
+      public String sentence = "";
+      public String translation = "";
+      public List<SpeechWord> words = new ArrayList<>();
+
+      /** Die Lesung des ganzen Satzes (Pinyin …), aus den Wörtern. */
+      public String reading() {
+         List<String> parts = new ArrayList<>();
+         for (SpeechWord w : this.words) {
+            if (!w.reading.isBlank()) {
+               parts.add(w.reading.strip());
+            }
+         }
+         return String.join(" ", parts);
+      }
+   }
+
+   public static final class SpeechWord {
+      public String text = "";
+      /** Aussprache-Hilfe: Pinyin mit Tönen, Kana … oder leer. */
+      public String reading = "";
+      public String meaning = "";
+
+      public SpeechWord() {
+      }
+
+      public SpeechWord(String text, String reading, String meaning) {
+         this.text = text;
+         this.reading = reading;
+         this.meaning = meaning;
+      }
+   }
+
+   /** Eine gestellte Aufgabe, wie sie in den Anki-Export kommt. */
+   public static final class HistoryEntry {
+      /** aufgabe oder sprechen */
+      public String kind = "aufgabe";
+      public String title = "";
+      public String question = "";
+      public String solution = "";
+      public String source = "";
+      public String topic = "";
+      public int wrongAttempts;
+      public boolean solved;
+      public long at;
+      /** Nur bei Sprechübungen. */
+      public String language = "";
+      public String reading = "";
+      public String translation = "";
    }
 
    public static final class Attempt {
@@ -158,6 +223,9 @@ public final class WorldData {
       if (this.stats == null) {
          this.stats = new Stats();
       }
+      if (this.history == null) {
+         this.history = new ArrayList<>();
+      }
       this.boosters.values().removeIf(v -> v == null || v <= 0);
       if (this.active != null) {
          if (this.active.hints == null) {
@@ -165,6 +233,9 @@ public final class WorldData {
          }
          if (this.active.attempts == null) {
             this.active.attempts = new ArrayList<>();
+         }
+         if (this.active.speech != null && (this.active.speech.words == null || this.active.speech.words.isEmpty())) {
+            this.active.speech = null;
          }
          if (this.active.question == null || this.active.question.isBlank()) {
             this.active = null;

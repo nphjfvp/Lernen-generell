@@ -115,6 +115,44 @@ public final class Prompts {
       return b.toString();
    }
 
+   public static String speaking(WorldData.Task task, String language, UniConfig c, String subjects) {
+      String lang = Languages.name(language);
+      String reading = switch (language) {
+         case "zh" -> "Pinyin mit Tonzeichen, Silben durch Leerzeichen getrennt (z. B. \"ní tǔ\")";
+         case "ja" -> "Lesung in Hiragana";
+         default -> "leer lassen";
+      };
+      String template = task == null ? "" : "Vorlage aus den Unterlagen"
+         + (task.topic.isBlank() ? "" : " (Thema \"" + task.topic + "\")") + ":\n" + clip(task.text, 1500) + "\n\n";
+      return "Erzeuge einen Satz zum laut Nachsprechen auf " + lang + " für eine Sprechübung.\n"
+         + (subjects == null || subjects.isBlank() ? "" : "Fach/Kurs: " + subjects + ".\n")
+         + (c.extraInstructions == null || c.extraInstructions.isBlank() ? "" : "Wünsche: " + c.extraInstructions.strip() + "\n")
+         + "\n" + template
+         + "Regeln:\n"
+         + "- Der Satz passt zur Vorlage: Ist sie ein Sprachkurs, nutze ihre Vokabeln und Grammatik; sonst ein einfacher, "
+         + "sinnvoller Satz über ihr Thema auf " + lang + ".\n"
+         + "- 4 bis 12 Wörter, natürlich und korrekt, so wie Muttersprachler ihn sagen würden.\n"
+         + "- Zerlege den Satz in seine Wörter, in Reihenfolge, ohne Satzzeichen in den Wörtern.\n"
+         + "- \"lesung\" je Wort: " + reading + ".\n"
+         + "- \"bedeutung\" je Wort und \"uebersetzung\" des Satzes auf " + c.language + ".\n\n"
+         + "Antworte NUR mit einem JSON-Objekt:\n"
+         + "{\"satz\": \"der ganze Satz\", \"uebersetzung\": \"...\", \"woerter\": [{\"text\": \"...\", \"lesung\": \"...\", \"bedeutung\": \"...\"}]}";
+   }
+
+   public static String transcription(String language) {
+      String lang = Languages.name(language);
+      String script = switch (language) {
+         case "zh" -> " in vereinfachten chinesischen Schriftzeichen; gib in \"lesung\" zusätzlich das GEHÖRTE als Pinyin mit Tonzeichen an, "
+            + "Silben durch Leerzeichen getrennt, so wie es ausgesprochen wurde (auch falsche Töne)";
+         case "ja" -> " in japanischer Schrift";
+         default -> "";
+      };
+      return "Das ist eine Sprachaufnahme von jemandem, der " + lang + " lernt. Schreibe wörtlich mit, was zu hören ist" + script + ".\n"
+         + "Wichtig: NICHTS korrigieren, ergänzen oder glätten. Falsch ausgesprochene Wörter so schreiben, wie sie klingen; "
+         + "nicht gesagte Wörter weglassen. Ist nichts Verständliches zu hören, ist \"text\" leer.\n\n"
+         + "Antworte NUR mit einem JSON-Objekt: {\"text\": \"...\"" + ("zh".equals(language) ? ", \"lesung\": \"...\"" : "") + "}";
+   }
+
    private static void appendHistory(StringBuilder b, WorldData.Challenge ch) {
       List<String> hints = ch.hints;
       if (!hints.isEmpty()) {

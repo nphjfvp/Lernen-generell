@@ -1,6 +1,7 @@
 package dev.lernen.uni.core;
 
 import java.util.Random;
+import java.util.function.BooleanSupplier;
 import java.util.concurrent.Executor;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -53,6 +54,10 @@ public final class StudyManager {
    /** Die zuletzt richtig gelöste Aufgabe, damit das Fenster "Richtig!" zeigen kann. */
    private WorldData.Challenge solved;
    private String solvedBooster = "";
+   /** Ob gerade eine Spracherkennung bereitsteht; ohne sie gibt es keine Sprechübungen. */
+   private BooleanSupplier speechAvailable = () -> false;
+   /** Die nächste vorbereitete Aufgabe soll eine Sprechübung sein (über das Menü angefordert). */
+   private boolean speakNowPending;
 
    public StudyManager(Supplier<UniConfig> config, Ai ai, Executor main, Random random, LongSupplier clock) {
       this.config = config;
@@ -90,6 +95,20 @@ public final class StudyManager {
       this.preparing = false;
       this.busy = false;
       this.materials.detach();
+   }
+
+   public void setSpeechAvailable(BooleanSupplier available) {
+      this.speechAvailable = available;
+   }
+
+   private boolean speakingPossible() {
+      UniConfig c = this.config.get();
+      return (c.speechShare() > 0.0 || this.speakNowPending) && this.speechAvailable.getAsBoolean();
+   }
+
+   /** Ob überhaupt etwas gestellt werden kann: Aufgaben aus PDFs oder Sprechübungen. */
+   private boolean hasMaterial() {
+      return !this.data.tasks.isEmpty() || this.speakingPossible();
    }
 
    public WorldData data() {
@@ -132,7 +151,7 @@ public final class StudyManager {
       }
 
       UniConfig c = this.config.get();
-      if (!c.hasKey() || this.data.tasks.isEmpty()) {
+      if (!c.hasKey() || !this.hasMaterial()) {
          return;
       }
       if (!c.enabled && !this.askNowPending) {
@@ -159,8 +178,26 @@ public final class StudyManager {
       this.retryAt = 0L;
    }
 
+   /** Stellt sofort eine Sprechübung (über das Menü). */
+   public void speakNow() {
+      if (this.data == null) {
+         return;
+      }
+      if (this.prepared != null && !this.prepared.isSpeaking()) {
+         this.prepared = null;
+      }
+      this.speakNowPending = true;
+      this.askNow();
+   }
+
    private void prepare() {
       WorldData.Task task = TaskPicker.pick(this.data.tasks, this.data.playMs, this.random);
+      UniConfig cfg = this.config.get();
+      boolean speak = this.speakingPossible() && (this.speakNowPending || task == null || this.random.nextDouble() < cfg.speechShare());
+      if (speak) {
+         this.prepareSpeaking(task, cfg.speechLanguage);
+         return;
+      }
       if (task == null) {
          return;
       }
@@ -195,10 +232,32 @@ public final class StudyManager {
       }));
    }
 
+   private void prepareSpeaking(WorldData.Task task, String language) {
+      this.preparing = true;
+      int mySession = this.session;
+      this.ai.generateSpeaking(task, language, this.data.subjects()).whenComplete((c, error) -> this.main.execute(() -> {
+         if (mySession != this.session) {
+            return;
+         }
+         this.preparing = false;
+         if (error != null || c == null) {
+            this.prepareError = error == null ? "kein Satz" : OpenRouter.describe(error);
+            this.retryAt = this.clock.getAsLong() + RETRY_MS;
+            Log.warn("Sprechübung konnte nicht erstellt werden: " + this.prepareError);
+         } else {
+            this.prepareError = "";
+            this.prepared = c;
+         }
+      }));
+   }
+
    private void activate() {
       WorldData.Challenge c = this.prepared;
       this.prepared = null;
       this.askNowPending = false;
+      if (c.isSpeaking()) {
+         this.speakNowPending = false;
+      }
       WorldData.Task task = this.data.task(c.taskId);
       if (task != null) {
          task.asked++;
@@ -285,6 +344,7 @@ public final class StudyManager {
       } else {
          this.game.message("§a✔ Geschafft. §7Mit gezeigter Lösung gibt es keinen Booster.");
       }
+      this.remember(c, true);
       this.data.active = null;
       this.solved = c;
       this.setStatus("Richtig!", false);
@@ -366,11 +426,85 @@ public final class StudyManager {
       if (!this.canSkip()) {
          return;
       }
+      this.remember(this.data.active, false);
       this.data.active = null;
       this.solved = null;
       this.nextDueAt = this.data.playMs + this.nextInterval();
-      this.game.message("§7Aufgabe wegen KI-Fehlern übersprungen.");
+      this.game.message("§7Aufgabe wegen Fehlern übersprungen.");
       this.data.save();
+   }
+
+   /** Höchstens so viele Einträge im Verlauf (für den Anki-Export). */
+   static final int HISTORY_MAX = 2000;
+
+   private void remember(WorldData.Challenge c, boolean solved) {
+      WorldData.HistoryEntry h = new WorldData.HistoryEntry();
+      WorldData.Task task = this.data.task(c.taskId);
+      h.kind = c.isSpeaking() ? "sprechen" : "aufgabe";
+      h.title = c.title;
+      h.question = c.question;
+      h.solution = c.solution;
+      h.source = task == null ? "" : task.source;
+      h.topic = task == null ? "" : task.topic;
+      h.wrongAttempts = c.wrongAttempts();
+      h.solved = solved;
+      h.at = System.currentTimeMillis();
+      if (c.isSpeaking()) {
+         h.language = c.speech.language;
+         h.reading = c.speech.reading();
+         h.translation = c.speech.translation;
+      }
+      this.data.history.add(h);
+      while (this.data.history.size() > HISTORY_MAX) {
+         this.data.history.removeFirst();
+      }
+   }
+
+   /** Die Sprechübung ist durch alle drei Stufen: gilt als richtig gelöst. */
+   public void finishSpeaking() {
+      WorldData.Challenge c = this.active();
+      if (c == null || !c.isSpeaking()) {
+         return;
+      }
+      c.attempts.add(new WorldData.Attempt(c.speech.sentence, true, "Alle drei Stufen geschafft."));
+      this.checkErrors = 0;
+      this.finishCorrect(c);
+   }
+
+   /** Ein ganzer Satz (Stufe 2/3) ist nicht geschafft. Kostet nur dann etwas, wenn es eingestellt ist. */
+   public void speechFailed(String feedback) {
+      WorldData.Challenge c = this.active();
+      if (c == null || !c.isSpeaking()) {
+         return;
+      }
+      c.attempts.add(new WorldData.Attempt("(gesprochen)", false, feedback));
+      this.checkErrors = 0;
+      UniConfig cfg = this.config.get();
+      if (cfg.speechPenalty) {
+         this.data.stats.wrongAnswers++;
+         this.data.stats.streak = 0;
+         if (!"keine".equals(cfg.penalty)) {
+            this.game.penalize(cfg.penalty);
+         }
+      }
+      this.data.save();
+   }
+
+   /** Die Spracherkennung ist ausgefallen (kein Mikrofon, Helfer weg …); nach mehreren Fehlern darf man überspringen. */
+   public void speechError(String message) {
+      this.checkErrors++;
+      this.setStatus(message, true);
+   }
+
+   public void speechOk() {
+      this.checkErrors = 0;
+   }
+
+   /** Speichert den Fortschritt der Sprechübung (Stufe, Wort). */
+   public void saveProgress() {
+      if (this.data != null) {
+         this.data.save();
+      }
    }
 
    /** Vom Spiel gemeldet, nachdem die Strafe ausgeführt wurde. */
@@ -440,7 +574,7 @@ public final class StudyManager {
       if (!c.hasKey()) {
          return "Kein OpenRouter-Key";
       }
-      if (this.data.tasks.isEmpty()) {
+      if (!this.hasMaterial()) {
          return this.materials.working() ? "PDF wird gelesen …" : "Keine Unterlagen";
       }
       if (!c.enabled) {
